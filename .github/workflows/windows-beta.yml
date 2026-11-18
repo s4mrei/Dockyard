@@ -1,0 +1,94 @@
+name: Dockyard Windows x64 beta
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  windows-x64:
+    if: ${{ github.event.repository.private }}
+    runs-on: windows-2022
+    timeout-minutes: 35
+    env:
+      CARGO_TARGET_DIR: ${{ github.workspace }}/src-tauri/target
+      CARGO_INCREMENTAL: '0'
+      RUSTUP_TOOLCHAIN: stable
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Prepare build tooling and path remapping
+        shell: pwsh
+        run: |
+          rustup toolchain install stable --profile minimal --target x86_64-pc-windows-msvc
+          if ($LASTEXITCODE -ne 0) { throw 'Cannot install Rust target' }
+          $cargoDir = if ($env:CARGO_HOME) { $env:CARGO_HOME } else { Join-Path $HOME '.cargo' }
+          # Use encoded flags because the checkout and toolchain paths may contain spaces.
+          $separator = [char]31
+          $flags = @("--remap-path-prefix=$env:GITHUB_WORKSPACE=/build/dockyard",
+                     "--remap-path-prefix=$cargoDir=/build/cargo") -join $separator
+          "CARGO_ENCODED_RUSTFLAGS=$flags" >> $env:GITHUB_ENV
+
+      - name: Install locked frontend dependencies
+        run: npm ci
+
+      - name: Build x64 NSIS installer
+        run: npm run tauri build -- --target x86_64-pc-windows-msvc --bundles nsis -- --locked
+
+      - name: Inspect installer and record SHA-256
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $bundle = Join-Path $env:CARGO_TARGET_DIR 'x86_64-pc-windows-msvc/release/bundle/nsis'
+          $installers = @(Get-ChildItem -LiteralPath $bundle -File -Filter '*-setup.exe')
+          if ($installers.Count -ne 1) { throw 'Expected exactly one NSIS setup executable' }
+          $installer = $installers[0]
+          $inspection = Join-Path $env:RUNNER_TEMP 'dockyard-nsis-inspection'
+          New-Item -ItemType Directory -Path $inspection | Out-Null
+          $sevenZip = Join-Path $env:ProgramFiles '7-Zip/7z.exe'
+          & $sevenZip x '-y' "-o$inspection" $installer.FullName
+          if ($LASTEXITCODE -ne 0) { throw 'Cannot inspect NSIS payload' }
+          $files = @(Get-ChildItem -LiteralPath $inspection -File -Recurse -Force)
+          if (-not ($files.Name -contains 'dockyard.exe')) { throw 'Dockyard executable is missing from the installer' }
+          $excluded = $files | Where-Object {
+            $_.Name -match '(?i)\.(?:sqlite3?|db)(?:-(?:wal|shm|journal))?$|\.blend$|^settings\.json$|^\.env(?:\.|$)|^\.buildinfo$'
+          }
+          if ($excluded) { throw 'Unexpected database, settings, or test payload' }
+          $patterns = @(
+            [regex]::Escape($env:GITHUB_WORKSPACE),
+            [regex]::Escape($env:GITHUB_WORKSPACE.Replace('\', '/')),
+            '/home/[^/\s]+/(?:Документы|Documents)/Dockyard',
+            'dockyard-beta[0-9]-test\.',
+            'Beta Scene\.blend'
+          ) -join '|'
+          $app = @($files | Where-Object Name -eq 'dockyard.exe')
+          foreach ($entry in @($installer) + $app) {
+            $bytes = [System.IO.File]::ReadAllBytes($entry.FullName)
+            foreach ($encoding in @([Text.Encoding]::UTF8, [Text.Encoding]::Unicode)) {
+              if ($encoding.GetString($bytes) -match $patterns) {
+                throw "Unexpected checkout path or test marker in $($entry.Name)"
+              }
+            }
+          }
+          $artifact = Join-Path $env:GITHUB_WORKSPACE 'windows-artifact'
+          New-Item -ItemType Directory -Path $artifact | Out-Null
+          Copy-Item -LiteralPath $installer.FullName -Destination $artifact
+          $hash = (Get-FileHash -Algorithm SHA256 -LiteralPath $installer.FullName).Hash.ToLowerInvariant()
+          "$hash  $($installer.Name)" | Set-Content -Encoding ascii (Join-Path $artifact 'SHA256SUMS.txt')
+          $signature = (Get-AuthenticodeSignature -FilePath $installer.FullName).Status
+          "Authenticode: $signature" | Set-Content -Encoding ascii (Join-Path $artifact 'authenticode.txt')
+          "### Windows x64 NSIS`n`n$($installer.Name)`n`nSHA-256: $hash`n`nAuthenticode: $signature" >> $env:GITHUB_STEP_SUMMARY
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dockyard-windows-x64-nsis
+          path: windows-artifact/
+          if-no-files-found: error
+          retention-days: 14
