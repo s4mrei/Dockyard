@@ -1,0 +1,121 @@
+# Dockyard
+
+Настольный лаунчер для CachyOS на Tauri 2, Rust, React и TypeScript.
+
+## Установка беты на CachyOS
+
+Для CachyOS x86_64 сохраните файл `dockyard-0.1.0beta4-1-x86_64.pkg.tar.zst`.
+Нужны системные пакеты `webkit2gtk-4.1` версии 2.54.3 или новее и `sqlite`
+версии 3.54.0 или новее. Если обновление CachyOS ещё не предоставляет подходящую
+версию WebKitGTK, дождитесь её в репозитории перед установкой.
+
+В терминале из папки с пакетом выполните:
+
+```bash
+sudo pacman -U ./dockyard-0.1.0beta4-1-x86_64.pkg.tar.zst
+```
+
+Откройте меню KDE, найдите **Dockyard** и запустите его.
+
+1. Нажмите «+», введите название и сохраните.
+2. В «Все приложения» выберите эту вкладку в списке назначения. Найдите приложение и нажмите «+» на карточке.
+3. Вернитесь в свою вкладку. Нажмите «Добавить файл» и «Добавить папку» и выберите их в системном диалоге.
+4. Перезапустите Dockyard из меню KDE. Откройте вкладку и нажмите на карточку каждого элемента.
+
+Вкладки хранятся в каталоге данных пользователя. Пакет устанавливает исполняемый файл,
+иконку и запись меню.
+
+## Бета для Windows x64
+
+На Windows 10/11 x64 с MSVC Build Tools, Rust и Node.js из корня проекта выполните:
+
+```powershell
+rustup target add x86_64-pc-windows-msvc
+npm ci
+npm run tauri build -- --target x86_64-pc-windows-msvc --bundles nsis -- --locked
+```
+
+Установщик `*-setup.exe` появится в `src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/`.
+NSIS устанавливает Dockyard для текущего пользователя. Если WebView2 отсутствует,
+установщик скачает официальный загрузчик Microsoft и запустит его.
+
+[Workflow Windows x64](.github/workflows/windows-beta.yml) запускается вручную в приватном
+репозитории GitHub. Он проверяет содержимое NSIS и сохраняет установщик, SHA-256 и статус
+Authenticode в артефакт `dockyard-windows-x64-nsis`. Подпись не настроена.
+
+Windows читает ярлыки `.lnk` из пользовательского и общего меню «Пуск». Вкладки
+и оформление хранятся в `%APPDATA%/dev.dockyard.launcher/workspaces.sqlite3`.
+На Windows и Linux приложения имеют разные идентификаторы. Локальные ссылки на
+файлы и папки относятся к тому компьютеру, где они созданы.
+
+После первой установки проверьте поиск, ярлыки из обеих папок «Пуск», выбор и открытие
+файла и папки, а также сохранение вкладки и оформления после перезапуска.
+Требование WebKitGTK и открытый блокер A2 относятся к пакету CachyOS.
+
+## Разработка на CachyOS
+
+Нужны Node.js и npm, Rust с Cargo, системные библиотеки Tauri, включая GTK 3 и GIO, а также SQLite.
+В CachyOS их можно установить через pacman:
+
+```bash
+sudo pacman -Syu --needed nodejs npm rust base-devel webkit2gtk-4.1 \
+  curl wget file openssl appmenu-gtk-module libappindicator-gtk3 librsvg xdotool sqlite
+```
+
+[Системные зависимости Tauri 2](https://v2.tauri.app/start/prerequisites/#linux)
+
+Из корня проекта:
+
+```bash
+npm ci
+npm run tauri dev
+```
+
+## Библиотека приложений
+
+- [src-tauri/src/applications.rs](src-tauri/src/applications.rs) читает видимые `.desktop`-записи через GIO. GIO учитывает каталоги XDG и пользовательские переопределения. GTK загружает иконки.
+- [src/App.tsx](src/App.tsx) сортирует приложения по названию, ищет по части названия без учёта регистра и показывает заглушку при отсутствии иконки.
+- Карточка приложения передаёт только ID в `launch_application`. Rust ищет ID среди видимых приложений и запускает соответствующую запись через GIO. Ошибка запуска отображается в окне.
+
+Оформление находится в [src/styles.css](src/styles.css).
+
+## Рабочие пространства
+
+Создайте вкладку кнопкой «+». В «Все приложения» выберите вкладку назначения
+и нажмите «+» на карточке рядом с приложением. В пользовательской вкладке кнопки
+«Добавить файл» и «Добавить папку» открывают системный диалог. В меню «⋯» карточки можно открыть элемент или убрать ссылку.
+В меню «⋯» рабочего пространства можно переименовать или удалить вкладку. Нажатие на карточку использует обработчик, назначенный в системе.
+
+- [src/App.tsx](src/App.tsx) — вкладки, редактирование и добавление из библиотеки.
+- [src-tauri/src/workspaces.rs](src-tauri/src/workspaces.rs) — команды и SQLite. База `workspaces.sqlite3` хранится в `${XDG_DATA_HOME:-$HOME/.local/share}/dev.dockyard.launcher/`. Для приложений сохраняется desktop ID, для файлов и папок — локальный URI.
+- [src-tauri/src/local_items.rs](src-tauri/src/local_items.rs) — выбор через GTK, проверка пути и открытие через GIO. Ссылки на приложения используют `launch_application`.
+
+## Повторная сборка пакета
+
+Собирайте из нейтрального каталога без имени пользователя, поскольку makepkg
+пишет абсолютные пути в `.BUILDINFO`. Например, из корня проекта:
+
+```bash
+export DOCKYARD_RELEASE="$PWD/release"
+export DOCKYARD_BUILD="$(mktemp -d /tmp/dockyard-release.XXXXXX)"
+mkdir -p "$DOCKYARD_RELEASE"
+tar --exclude=.git --exclude=node_modules --exclude=dist --exclude=release \
+  --exclude=src-tauri/target --exclude=src-tauri/gen --exclude=src-tauri/permissions/autogenerated \
+  -cf - src src-tauri packaging package.json package-lock.json vite.config.ts tsconfig.json index.html \
+  | tar -xf - -C "$DOCKYARD_BUILD"
+(cd "$DOCKYARD_BUILD" && npm ci)
+(cd "$DOCKYARD_BUILD/packaging/cachyos" && PKGDEST="$DOCKYARD_RELEASE" makepkg)
+```
+
+Рецепт CachyOS находится в [packaging/cachyos/PKGBUILD](packaging/cachyos/PKGBUILD).
+
+## Оформление
+
+В «Настройки» → «Оформление» доступны цвет из иконок, общий HEX, индивидуальный
+цвет по desktop ID и отдельная внутренняя подсветка. Изменения видны в
+предпросмотре. Кнопка «Сохранить» записывает их в таблицу `appearance` той же базы.
+
+- [src/AppearanceSettings.tsx](src/AppearanceSettings.tsx) — настройки и предпросмотр.
+- [src/accents.ts](src/accents.ts) — извлечение, кэш и ограничение яркости цвета.
+- [src-tauri/src/appearance.rs](src-tauri/src/appearance.rs) — чтение и сохранение настроек.
+- [src/fonts](src/fonts) — локальный Inter и его лицензия OFL.

@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Dockyard
+Comment=Launch applications and open workspace shortcuts
+Comment[ru]=Запуск приложений и открытие ссылок из рабочих пространств
+Exec=dockyard
+Icon=dev.dockyard.launcher
+Terminal=false
+Categories=Utility;
+StartupWMClass=dev.dockyard.launcher

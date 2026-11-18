@@ -1,0 +1,23 @@
+{
+  "identifier": "main-local",
+  "description": "Local Dockyard window only",
+  "webviews": [
+    "main"
+  ],
+  "local": true,
+  "permissions": [
+    "allow-load-appearance",
+    "allow-save-appearance",
+    "allow-list-applications",
+    "allow-launch-application",
+    "allow-list-workspaces",
+    "allow-save-workspace",
+    "allow-delete-workspace",
+    "allow-add-workspace-application",
+    "allow-add-workspace-local-item",
+    "allow-open-workspace-local-item",
+    "allow-remove-workspace-item",
+    "core:event:allow-listen",
+    "core:event:allow-unlisten"
+  ]
+}

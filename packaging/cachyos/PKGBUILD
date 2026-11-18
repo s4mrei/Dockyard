@@ -1,0 +1,32 @@
+pkgname=dockyard
+pkgver=0.1.0beta4
+pkgrel=1
+pkgdesc='Desktop application launcher with local workspaces'
+arch=('x86_64')
+depends=('glibc' 'gcc-libs' 'gtk3' 'glib2' 'gdk-pixbuf2' 'webkit2gtk-4.1>=2.54.3'
+         'libsoup3' 'sqlite>=3.54.0' 'desktop-file-utils' 'hicolor-icon-theme')
+makedepends=('nodejs' 'npm' 'rust' 'pkgconf')
+options=('!debug' '!buildflags')
+
+build() {
+  cd "$startdir/../.."
+  local project_dir cargo_dir
+  project_dir="$(pwd -P)"
+  cargo_dir="$(realpath "${CARGO_HOME:-$HOME/.cargo}")"
+  # The separator preserves literal spaces in source paths.
+  printf -v CARGO_ENCODED_RUSTFLAGS '%s\x1f%s' \
+    "--remap-path-prefix=$project_dir=/build/dockyard" \
+    "--remap-path-prefix=$cargo_dir=/build/cargo"
+  export CARGO_ENCODED_RUSTFLAGS
+  npm run tauri build -- --no-bundle -- --locked
+}
+
+package() {
+  local project="$startdir/../.."
+  install -Dm755 "$project/src-tauri/target/release/dockyard" "$pkgdir/usr/bin/dockyard"
+  install -Dm644 "$startdir/dev.dockyard.launcher.desktop" \
+    "$pkgdir/usr/share/applications/dev.dockyard.launcher.desktop"
+  install -Dm644 "$project/src-tauri/icons/icon.png" \
+    "$pkgdir/usr/share/icons/hicolor/32x32/apps/dev.dockyard.launcher.png"
+  install -Dm644 "$project/src/fonts/OFL.txt" "$pkgdir/usr/share/licenses/dockyard/Inter-OFL.txt"
+}
