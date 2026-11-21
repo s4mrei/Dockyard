@@ -80,10 +80,10 @@ label { min-width: 0; }
 .brand {
   display: flex;
   align-items: center;
-  gap: 9px;
+  gap: 8px;
   padding: 10px 14px;
 }
-.brand img { width: 30px; height: 30px; border-radius: 8px; }
+.brand img { display: block; width: 24px; height: 24px; }
 .brand h1 { font-size: 15px; font-weight: 650; }
 .tabs {
   display: flex;
@@ -160,12 +160,12 @@ button[aria-pressed='true'] { background: var(--selected); border-color: #466a96
   height: 84px;
   min-width: 0;
   align-items: center;
-  gap: 4px;
-  padding: 0 9px 0 0;
+  gap: 6px;
+  padding: 0 10px 0 0;
   border: 1px solid var(--border);
   border-radius: var(--card-radius);
   background: linear-gradient(90deg, var(--card) 0%, var(--card-accent) 100%);
-  transition: transform 160ms ease-out, border-color 160ms ease-out;
+  transition: transform 200ms ease-out, border-color 200ms ease-out;
 }
 .card:hover, .card:focus-within { border-color: var(--accent); }
 .card-main {
@@ -191,6 +191,7 @@ button.card-main:focus-visible { outline-offset: -4px; }
   place-items: center;
   background: var(--sidebar);
   font-size: 17px;
+  line-height: 1;
 }
 .card-name {
   display: -webkit-box;
@@ -209,7 +210,7 @@ button.card-main:focus-visible { outline-offset: -4px; }
   place-items: center;
   color: #b9c9df;
 }
-.item-icon img { width: 36px; height: 36px; object-fit: contain; }
+.item-icon img { display: block; width: 36px; height: 36px; object-fit: contain; }
 .item-icon:not(.system-icon) > span { position: relative; display: block; border: 2px solid currentColor; border-radius: 4px; }
 .item-icon.application > span { width: 24px; height: 24px; }
 .item-icon.application > span::after { position: absolute; inset: 4px; border: 1px solid currentColor; border-radius: 2px; content: ''; }
@@ -231,8 +232,8 @@ button.card-main:focus-visible { outline-offset: -4px; }
 .preview h2 { font-size: 14px; }
 
 @media (hover: hover) and (prefers-reduced-motion: no-preference) {
-  .card:hover { transform: scale(1.02); }
-  .card:active { transform: scale(1); }
+  .card:hover { transform: translateY(-1px) scale(1.015); transition-duration: 160ms; }
+  .card:active { transform: none; }
   .tabs button:hover:not(:disabled), .workspace-actions button:hover:not(:disabled), .settings-button:hover:not(:disabled) { transform: scale(1.015); }
   .tabs button:active, .workspace-actions button:active, .settings-button:active { transform: scale(1); }
 }
