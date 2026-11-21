@@ -3,7 +3,7 @@ name: Dockyard Windows x64 beta
 on:
   workflow_dispatch:
   push:
-    branches: [windows-x64-beta4]
+    branches: [windows-x64-beta4, beta5]
 
 permissions:
   contents: read

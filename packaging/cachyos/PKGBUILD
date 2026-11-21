@@ -1,5 +1,5 @@
 pkgname=dockyard
-pkgver=0.1.0beta4
+pkgver=0.1.0beta5
 pkgrel=1
 pkgdesc='Desktop application launcher with local workspaces'
 arch=('x86_64')
@@ -26,6 +26,11 @@ package() {
   install -Dm755 "$project/src-tauri/target/release/dockyard" "$pkgdir/usr/bin/dockyard"
   install -Dm644 "$startdir/dev.dockyard.launcher.desktop" \
     "$pkgdir/usr/share/applications/dev.dockyard.launcher.desktop"
+  local size
+  for size in 16 24 48 128 256; do
+    install -Dm644 "$project/src-tauri/icons/icon-$size.png" \
+      "$pkgdir/usr/share/icons/hicolor/${size}x${size}/apps/dev.dockyard.launcher.png"
+  done
   install -Dm644 "$project/src-tauri/icons/icon.png" \
     "$pkgdir/usr/share/icons/hicolor/32x32/apps/dev.dockyard.launcher.png"
   install -Dm644 "$project/src/fonts/OFL.txt" "$pkgdir/usr/share/licenses/dockyard/Inter-OFL.txt"
